@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSIORS Watchtower — Syria Situational Awareness</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header" id="header">
+  <div class="header-left">
+    <h1><span class="logo-accent">CSIORS</span> Watchtower</h1>
+    <div class="sub">Syria Field Monitoring — Terms of Trade &amp; Early Warning System</div>
+  </div>
+  <div class="controls">
+    <div class="date-range-wrap">
+      <select id="monthFrom" title="From month"></select>
+      <span class="range-sep">to</span>
+      <select id="monthTo" title="To month"></select>
+    </div>
+    <select id="cityFilter" title="Filter by city">
+      <option value="all">All Cities</option>
+    </select>
+    <label class="compare-toggle" title="Compare months">
+      <input type="checkbox" id="compareMode"> Compare
+    </label>
+    <button class="btn-pdf" id="pdfBtn" title="Export PDF">PDF</button>
+    <div class="live-badge">LIVE</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="container" id="dashboardRoot">
+
+  <!-- Stats row -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- Map + EWS -->
+  <div class="grid-2-1">
+    <div>
+      <div class="section-label">Operational Map — click a city for details</div>
+      <div id="syriaMap" class="map-container"></div>
+    </div>
+    <div>
+      <div class="section-label">Early Warning System</div>
+      <div class="ews-panel" id="ewsPanel"></div>
+    </div>
+  </div>
+
+  <!-- City detail (hidden by default) -->
+  <div class="city-detail card" id="cityDetail" style="display:none"></div>
+
+  <!-- Comparison banner (shown in compare mode) -->
+  <div id="compareBanner" style="display:none" class="card compare-card">
+    <div class="card-title">Month-over-Month Comparison</div>
+    <div class="card-sub" id="compareSubtitle"></div>
+    <div id="compareGrid" class="compare-grid"></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Terms of Trade Index</div>
+      <div class="card-sub">kg of flour purchasable with 1 day unskilled wage (higher = better)</div>
+      <div class="chart-wrap"><canvas id="totChart"></canvas></div>
+      <div class="chart-note">WFP benchmark: ToT &lt; 5 = crisis threshold. Below 3 = emergency food insecurity.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Food Prices (SYP)</div>
+      <div class="card-sub">Average prices across reporting locations</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="card" style="margin-top:16px">
+    <div class="table-header">
+      <div>
+        <div class="card-title">All Reports</div>
+        <div class="card-sub">Click column headers to sort · Click rows to select city</div>
+      </div>
+      <input class="search-input" id="tableSearch" type="search" placeholder="Search city or mood...">
+    </div>
+    <div style="overflow-x:auto">
+      <table id="dataTable" class="city-table">
+        <thead>
+          <tr>
+            <th data-col="date" class="sortable">Date <span class="sort-icon"></span></th>
+            <th data-col="city" class="sortable">City <span class="sort-icon"></span></th>
+            <th data-col="flour" class="sortable">Flour 1kg <span class="sort-icon"></span></th>
+            <th data-col="wage" class="sortable">Daily Wage <span class="sort-icon"></span></th>
+            <th data-col="tot" class="sortable">ToT <span class="sort-icon"></span></th>
+            <th data-col="mood" class="sortable">Mood <span class="sort-icon"></span></th>
+            <th data-col="job" class="sortable">Jobs <span class="sort-icon"></span></th>
+            <th data-col="movement" class="sortable">Movement <span class="sort-icon"></span></th>
+            <th data-col="migration" class="sortable">Migration <span class="sort-icon"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>CSIORS.org — Czech-Slovak Institute of Oriental Studies | Field monitoring network</span>
+    <span>Methodology: WFP JMMI-compatible | Updated: Monthly | contact@csiors.org</span>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

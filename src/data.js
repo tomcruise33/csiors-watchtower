@@ -1,0 +1,176 @@
+// ============================================================
+// data.js — Load & process field data
+// Designed to be API-swappable: swap fetchData() to hit an
+// endpoint instead of a local JSON file.
+// ============================================================
+
+export const MOOD_SCORE  = { "Mostly calm": 1, "Worried": 2, "Fearful": 3, "Trying to leave": 4 };
+export const MOOD_COLOR  = { "Mostly calm": "#22c55e", "Worried": "#f59e0b", "Fearful": "#ef4444", "Trying to leave": "#7c2d12" };
+export const JOB_SCORE   = { "High": 1, "Medium": 2, "Low": 3, "Very low": 4 };
+export const MOVE_SCORE  = { "Unrestricted": 1, "Slightly restricted": 2, "Significantly restricted": 3, "Very restricted": 4 };
+export const MIGR_SCORE  = { "None": 0, "Mostly individuals": 1, "Several families": 2 };
+
+export const CHART_COLORS = ["#3b82f6","#f59e0b","#22c55e","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
+
+// City geographic coordinates [lat, lng]
+export const CITY_COORDS = {
+  "Raqqa":      [35.95, 39.01],
+  "Al-Hasakah": [36.50, 40.75],
+  "Deir ez-Zor":[35.34, 40.14],
+  "Al-Tabqa":   [35.83, 38.56],
+  "Al-Busayrah":[35.15, 40.23],
+  "Al-Suwar":   [35.53, 40.38],
+  "Al-Mayadin": [35.02, 40.45],
+  "Aleppo":     [36.20, 37.16],
+};
+
+/**
+ * Fetch data from the JSON file.
+ * To switch to an API, change this URL to an endpoint like:
+ *   const res = await fetch('/api/reports?from=...&to=...')
+ */
+export async function fetchData() {
+  const res = await fetch('/data/syria_field_data.json');
+  if (!res.ok) throw new Error('Failed to load field data');
+  const raw = await res.json();
+  return raw
+    .filter(r => r.quality !== 'suspect')   // exclude suspect entries by default
+    .map(normalizeRecord);
+}
+
+/**
+ * Normalize a raw record into a consistent shape.
+ */
+function normalizeRecord(r) {
+  return {
+    date:      r.date,
+    month:     r.month,
+    city:      r.city,
+    city_ar:   r.city_ar,
+    lat:       r.lat,
+    lon:       r.lon,
+    flour:     r.flour,
+    rice:      r.rice,
+    oil:       r.oil,
+    eggs:      r.eggs,
+    water:     r.water,
+    gasoline:  r.gasoline,
+    diesel:    r.diesel,
+    lpg:       r.lpg,
+    wage:      r.wage_unskilled,
+    wageSkilled: r.wage_skilled,
+    rent:      r.rent,
+    job:       r.job_availability,
+    tot:       r.tot_flour_kg,
+    basket:    r.food_basket,
+    mood:      r.mood,
+    movement:  r.movement,
+    migration: r.migration,
+    quality:   r.quality,
+  };
+}
+
+/**
+ * Get sorted unique months from data array.
+ */
+export function getMonths(data) {
+  return [...new Set(data.map(r => r.month))].sort();
+}
+
+/**
+ * Get sorted unique cities from data array.
+ */
+export function getCities(data) {
+  return [...new Set(data.map(r => r.city))].sort();
+}
+
+/**
+ * Filter data by month range and city.
+ */
+export function filterData(data, { fromMonth, toMonth, city }) {
+  return data.filter(r => {
+    if (fromMonth && r.month < fromMonth) return false;
+    if (toMonth   && r.month > toMonth)   return false;
+    if (city && city !== 'all' && r.city !== city) return false;
+    return true;
+  });
+}
+
+/**
+ * Aggregate data by city: compute average ToT, worst mood, report count.
+ */
+export function aggregateByCity(data) {
+  const agg = {};
+  data.forEach(r => {
+    if (!agg[r.city]) agg[r.city] = { moods: [], tots: [], baskets: [], reports: [] };
+    agg[r.city].moods.push(r.mood);
+    if (r.tot && r.tot < 25) agg[r.city].tots.push(r.tot);
+    if (r.basket) agg[r.city].baskets.push(r.basket);
+    agg[r.city].reports.push(r);
+  });
+
+  Object.values(agg).forEach(a => {
+    a.worstMood = a.moods.reduce((worst, m) =>
+      (MOOD_SCORE[m] || 0) > (MOOD_SCORE[worst] || 0) ? m : worst,
+      'Mostly calm'
+    );
+    a.avgToT = a.tots.length > 0
+      ? +(a.tots.reduce((s, v) => s + v, 0) / a.tots.length).toFixed(1)
+      : null;
+    a.avgBasket = a.baskets.length > 0
+      ? Math.round(a.baskets.reduce((s, v) => s + v, 0) / a.baskets.length)
+      : null;
+    a.n = a.reports.length;
+  });
+
+  return agg;
+}
+
+/**
+ * Compute month-over-month comparison for two months.
+ * Returns array of { metric, prev, curr, delta, unit } objects.
+ */
+export function compareMonths(data, prevMonth, currMonth) {
+  const prev = data.filter(r => r.month === prevMonth);
+  const curr = data.filter(r => r.month === currMonth);
+  if (!prev.length || !curr.length) return [];
+
+  const avg = (arr, fn) => {
+    const vals = arr.map(fn).filter(v => v != null && !isNaN(v));
+    return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  };
+
+  const metrics = [
+    { key: 'tot',    label: 'Avg ToT',        fn: r => r.tot && r.tot < 25 ? r.tot : null, unit: 'kg', decimals: 1, lowerBetter: false },
+    { key: 'basket', label: 'Food Basket',     fn: r => r.basket,  unit: 'SYP', decimals: 0, lowerBetter: true },
+    { key: 'flour',  label: 'Flour 1kg',       fn: r => r.flour,   unit: 'SYP', decimals: 0, lowerBetter: true },
+    { key: 'wage',   label: 'Daily Wage',      fn: r => r.wage,    unit: 'SYP', decimals: 0, lowerBetter: false },
+    { key: 'mood',   label: 'Mood Score',      fn: r => MOOD_SCORE[r.mood] || 0, unit: '/4', decimals: 1, lowerBetter: true },
+    { key: 'jobs',   label: 'Job Scarcity',    fn: r => JOB_SCORE[r.job] || 0,  unit: '/4', decimals: 1, lowerBetter: true },
+    { key: 'move',   label: 'Movement Restr.', fn: r => MOVE_SCORE[r.movement] || 0, unit: '/4', decimals: 1, lowerBetter: true },
+    { key: 'migr',   label: 'Migration Pres.', fn: r => MIGR_SCORE[r.migration] ?? 0, unit: '/2', decimals: 1, lowerBetter: true },
+  ];
+
+  return metrics.map(m => {
+    const p = avg(prev, m.fn);
+    const c = avg(curr, m.fn);
+    const delta = (p != null && c != null) ? +(c - p).toFixed(m.decimals) : null;
+    return {
+      label: m.label,
+      prev:  p != null ? +p.toFixed(m.decimals) : null,
+      curr:  c != null ? +c.toFixed(m.decimals) : null,
+      delta,
+      unit: m.unit,
+      lowerBetter: m.lowerBetter,
+    };
+  });
+}
+
+/**
+ * Format month code to human label ("2025-11" → "Nov 2025").
+ */
+export function fmtMonth(m) {
+  const [y, mo] = m.split('-');
+  const d = new Date(+y, +mo - 1, 1);
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}

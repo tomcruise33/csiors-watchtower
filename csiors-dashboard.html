@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSIORS — Syria Situational Awareness Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-primary: #020617;
+    --bg-card: #0f172a;
+    --bg-elevated: #1e293b;
+    --border: #334155;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-dim: #475569;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --orange: #f97316;
+    --red: #ef4444;
+    --purple: #8b5cf6;
+    --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-primary); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; }
+
+  .header { background: linear-gradient(90deg, var(--bg-card), var(--bg-elevated)); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .header h1 span { color: var(--blue); }
+  .header .sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  .controls { display: flex; gap: 8px; align-items: center; }
+  .controls select { background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  .live-badge { background: rgba(34,197,94,0.13); color: var(--green); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; animation: pulse-live 2s infinite; }
+  @keyframes pulse-live { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+  .container { max-width: 1280px; margin: 0 auto; padding: 20px 24px; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; transition: border-color 0.2s; }
+  .stat-card:hover { border-color: var(--blue); }
+  .stat-icon { font-size: 22px; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 800; color: var(--text-primary); }
+  .stat-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; margin-top: 2px; }
+  .stat-sub { font-size: 10px; color: var(--text-dim); }
+
+  /* Grid layouts */
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-top: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .section-label { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; font-weight: 600; }
+
+  /* Card */
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card-title { color: var(--text-primary); font-size: 15px; font-weight: 700; }
+  .card-sub { color: var(--text-muted); font-size: 11px; margin-top: 2px; margin-bottom: 14px; }
+
+  /* Map */
+  .map-container { position: relative; width: 100%; padding-bottom: 62%; background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .map-container svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .map-city { cursor: pointer; transition: transform 0.2s; }
+  .map-city:hover { transform: scale(1.1); }
+
+  /* EWS */
+  .ews-panel { border-radius: 12px; padding: 18px; transition: background 0.3s; }
+  .ews-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .ews-label { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+  .ews-score { font-size: 42px; font-weight: 900; line-height: 1; }
+  .ews-badge { padding: 5px 18px; border-radius: 20px; font-weight: 800; font-size: 13px; color: #000; }
+  .ews-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .ews-bar-label { color: var(--text-secondary); font-size: 11px; width: 115px; flex-shrink: 0; }
+  .ews-bar-track { flex: 1; height: 7px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
+  .ews-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .ews-bar-val { color: var(--text-primary); font-size: 11px; width: 35px; text-align: right; font-weight: 600; }
+
+  /* City detail */
+  .city-detail { margin-top: 16px; }
+  .city-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .city-name { font-size: 18px; font-weight: 800; }
+  .city-date { color: var(--text-muted); font-size: 11px; }
+  .badge { padding: 3px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-item { background: var(--bg-elevated); border-radius: 8px; padding: 10px; }
+  .detail-item-label { color: var(--text-muted); font-size: 10px; margin-bottom: 2px; }
+  .detail-item-value { color: var(--text-primary); font-size: 14px; font-weight: 700; }
+
+  /* Chart containers */
+  .chart-wrap { height: 260px; position: relative; }
+  .chart-note { color: var(--text-dim); font-size: 10px; margin-top: 10px; border-top: 1px solid var(--bg-elevated); padding-top: 8px; }
+
+  /* City table */
+  .city-table { width: 100%; margin-top: 16px; }
+  .city-table table { width: 100%; border-collapse: collapse; }
+  .city-table th { text-align: left; padding: 8px 10px; font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid var(--border); font-weight: 600; }
+  .city-table td { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #1e293b; }
+  .city-table tr:hover { background: var(--bg-elevated); cursor: pointer; }
+  .city-table tr.selected { background: rgba(59,130,246,0.1); }
+  .mood-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  /* Footer */
+  .footer { margin-top: 28px; padding: 16px 0; border-top: 1px solid var(--bg-elevated); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .footer span { color: var(--text-dim); font-size: 11px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .grid-2-1, .grid-2 { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 500px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .header { padding: 12px 16px; }
+    .container { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1><span>CSIORS</span> Situational Awareness</h1>
+    <div class="sub">Syria Field Monitoring Dashboard — Terms of Trade & Early Warning System</div>
+  </div>
+  <div class="controls">
+    <select id="monthFilter">
+      <option value="all">All Months</option>
+      <option value="2025-11">Nov 2025</option>
+      <option value="2025-12">Dec 2025</option>
+      <option value="2026-01">Jan 2026</option>
+    </select>
+    <select id="cityFilter">
+      <option value="all">All Cities</option>
+    </select>
+    <div class="live-badge">LIVE</div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- Map + EWS -->
+  <div class="grid-2-1">
+    <div>
+      <div class="section-label">Operational Map — Click a city for details</div>
+      <div class="map-container">
+        <svg viewBox="0 0 100 80" id="syriaMap"></svg>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Early Warning System</div>
+      <div class="ews-panel" id="ewsPanel"></div>
+    </div>
+  </div>
+
+  <!-- City detail (hidden by default) -->
+  <div class="city-detail card" id="cityDetail" style="display:none"></div>
+
+  <!-- Charts -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Terms of Trade Index</div>
+      <div class="card-sub">kg of flour purchasable with 1 day unskilled wage (higher = better)</div>
+      <div class="chart-wrap"><canvas id="totChart"></canvas></div>
+      <div class="chart-note">WFP benchmark: ToT &lt; 5 = crisis threshold. Below 3 = emergency food insecurity.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Food Prices (SYP)</div>
+      <div class="card-sub">Average prices across reporting locations</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Data table -->
+  <div class="city-table card" style="margin-top:16px">
+    <div class="card-title">All Reports</div>
+    <div class="card-sub">Click a row to select city</div>
+    <div style="overflow-x:auto">
+      <table id="dataTable">
+        <thead><tr>
+          <th>Date</th><th>City</th><th>Flour 1kg</th><th>Daily Wage</th><th>ToT</th><th>Mood</th><th>Jobs</th><th>Movement</th><th>Migration</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>CSIORS.org — Czech-Slovak Institute of Oriental Studies | Data: Field monitoring network</span>
+    <span>Methodology: WFP JMMI-compatible | Updated: Monthly | Contact: info@csiors.org</span>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA — Real field data from CSIORS Nov 2025 – Jan 2026
+// ============================================================
+const DATA = [
+  { date:"4.11.2025", month:"2025-11", city:"Raqqa", flour:3000, rice:10000, oil:13000, eggs:30000, water:3000, gasoline:7000, wage:50000, wageSkilled:75000, rent:500000, job:"Very low", tot:16.7, basket:59000, mood:"Fearful", movement:"Very restricted", migration:"Mostly individuals" },
+  { date:"4.11.2025", month:"2025-11", city:"Raqqa", flour:10000, rice:14000, oil:18000, eggs:40000, water:5000, gasoline:8000, wage:40000, wageSkilled:80000, rent:1000000, job:"Very low", tot:4.0, basket:87000, mood:"Worried", movement:"Unrestricted", migration:"None" },
+  { date:"4.11.2025", month:"2025-11", city:"Al-Busayrah", flour:5000, rice:10000, oil:20000, eggs:15000, water:3000, gasoline:7000, wage:25000, wageSkilled:60000, rent:800000, job:"Low", tot:5.0, basket:53000, mood:"Worried", movement:"Significantly restricted", migration:"Several families" },
+  { date:"4.11.2025", month:"2025-11", city:"Al-Suwar", flour:5000, rice:9000, oil:18000, eggs:17000, water:4000, gasoline:8000, wage:30000, wageSkilled:70000, rent:700000, job:"Medium", tot:6.0, basket:53000, mood:"Fearful", movement:"Slightly restricted", migration:"Mostly individuals" },
+  { date:"4.11.2025", month:"2025-11", city:"Deir ez-Zor", flour:8000, rice:10000, oil:20000, eggs:15000, water:3000, gasoline:12500, wage:25000, wageSkilled:50000, rent:1000000, job:"Low", tot:3.1, basket:56000, mood:"Mostly calm", movement:"Unrestricted", migration:"Mostly individuals" },
+  { date:"3.12.2025", month:"2025-12", city:"Raqqa", flour:2500, rice:6000, oil:13000, eggs:30000, water:3000, gasoline:7000, wage:75000, wageSkilled:120000, rent:null, job:"Very low", tot:30.0, basket:54500, mood:"Worried", movement:"Significantly restricted", migration:"Mostly individuals" },
+  { date:"3.12.2025", month:"2025-12", city:"Al-Hasakah", flour:4800, rice:10000, oil:18000, eggs:15000, water:3500, gasoline:4000, wage:40000, wageSkilled:100000, rent:700000, job:"Very low", tot:8.3, basket:51300, mood:"Worried", movement:"Unrestricted", migration:"Several families" },
+  { date:"3.12.2025", month:"2025-12", city:"Al-Busayrah", flour:4500, rice:10000, oil:20000, eggs:15000, water:3500, gasoline:8000, wage:25000, wageSkilled:75000, rent:800000, job:"Low", tot:5.6, basket:53000, mood:"Worried", movement:"Slightly restricted", migration:"Several families" },
+  { date:"3.12.2025", month:"2025-12", city:"Al-Tabqa", flour:6000, rice:10000, oil:20000, eggs:15000, water:3000, gasoline:6000, wage:50000, wageSkilled:100000, rent:1000000, job:"Low", tot:8.3, basket:54000, mood:"Fearful", movement:"Significantly restricted", migration:"Mostly individuals" },
+  { date:"3.12.2025", month:"2025-12", city:"Deir ez-Zor", flour:5000, rice:9000, oil:19000, eggs:20000, water:3500, gasoline:8000, wage:30000, wageSkilled:75000, rent:1500000, job:"Medium", tot:6.0, basket:56500, mood:"Mostly calm", movement:"Slightly restricted", migration:"Mostly individuals" },
+  { date:"6.12.2025", month:"2025-12", city:"Al-Mayadin", flour:8000, rice:7000, oil:19000, eggs:15000, water:4500, gasoline:9000, wage:35000, wageSkilled:75000, rent:1000000, job:"Medium", tot:4.4, basket:53500, mood:"Mostly calm", movement:"Unrestricted", migration:"None" },
+  { date:"5.1.2026", month:"2026-01", city:"Al-Tabqa", flour:3000, rice:6000, oil:13000, eggs:30000, water:5000, gasoline:6500, wage:50000, wageSkilled:100000, rent:400000, job:"Very low", tot:16.7, basket:57000, mood:"Worried", movement:"Slightly restricted", migration:"Mostly individuals" },
+];
+
+const MONTHS = ["2025-11","2025-12","2026-01"];
+const MONTH_LABELS = {"2025-11":"Nov 2025","2025-12":"Dec 2025","2026-01":"Jan 2026"};
+const CITIES = [...new Set(DATA.map(d=>d.city))].sort();
+
+const MOOD_SCORE = {"Mostly calm":1,"Worried":2,"Fearful":3,"Trying to leave":4};
+const MOOD_COLOR = {"Mostly calm":"#22c55e","Worried":"#f59e0b","Fearful":"#ef4444","Trying to leave":"#7c2d12"};
+const JOB_SCORE = {"High":1,"Medium":2,"Low":3,"Very low":4};
+const MOVE_SCORE = {"Unrestricted":1,"Slightly restricted":2,"Significantly restricted":3,"Very restricted":4};
+const MIGR_SCORE = {"None":0,"Mostly individuals":1,"Several families":2};
+
+const CITY_MAP = {
+  "Raqqa":{x:28,y:22},"Al-Tabqa":{x:20,y:26},"Aleppo":{x:10,y:18},
+  "Al-Hasakah":{x:58,y:14},"Deir ez-Zor":{x:52,y:42},
+  "Al-Busayrah":{x:60,y:52},"Al-Suwar":{x:56,y:34},"Al-Mayadin":{x:62,y:58}
+};
+
+const CHART_COLORS = ["#3b82f6","#f59e0b","#22c55e","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
+
+let selectedCity = "all";
+let selectedMonth = "all";
+let totChartInst = null;
+let priceChartInst = null;
+
+// Populate city filter
+const citySelect = document.getElementById("cityFilter");
+CITIES.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; citySelect.appendChild(o); });
+
+document.getElementById("monthFilter").addEventListener("change", e => { selectedMonth = e.target.value; render(); });
+document.getElementById("cityFilter").addEventListener("change", e => { selectedCity = e.target.value; render(); });
+
+function getFiltered() {
+  let d = DATA;
+  if (selectedMonth !== "all") d = d.filter(r => r.month === selectedMonth);
+  return d;
+}
+
+function renderStats() {
+  const d = getFiltered();
+  const validToT = d.filter(r => r.tot && r.tot < 25);
+  const avgToT = validToT.length > 0 ? (validToT.reduce((s,r)=>s+r.tot,0)/validToT.length).toFixed(1) : "—";
+  const validB = d.filter(r => r.basket);
+  const avgB = validB.length > 0 ? Math.round(validB.reduce((s,r)=>s+r.basket,0)/validB.length) : "—";
+  const cities = new Set(d.map(r=>r.city)).size;
+  const fearful = d.filter(r => r.mood==="Fearful"||r.mood==="Trying to leave").length;
+  const pct = d.length > 0 ? Math.round(fearful/d.length*100) : 0;
+
+  document.getElementById("statsRow").innerHTML = [
+    {icon:"&#x1F4CA;",val:d.length,label:"Reports",sub:`${cities} locations`},
+    {icon:"&#x2696;&#xFE0F;",val:avgToT,label:"Avg ToT Index",sub:"kg flour / day wage"},
+    {icon:"&#x1F6D2;",val:typeof avgB==="number"?avgB.toLocaleString():avgB,label:"Avg Food Basket",sub:"SYP (5 items)"},
+    {icon:"&#x26A0;&#xFE0F;",val:`${fearful}/${d.length}`,label:"Fearful / Alert",sub:`${pct}% of reports`}
+  ].map(s=>`<div class="stat-card"><div class="stat-icon">${s.icon}</div><div class="stat-value">${s.val}</div><div class="stat-label">${s.label}</div><div class="stat-sub">${s.sub}</div></div>`).join("");
+}
+
+function renderMap() {
+  const d = getFiltered();
+  const agg = {};
+  d.forEach(r => {
+    if (!agg[r.city]) agg[r.city] = {moods:[],tots:[],n:0};
+    agg[r.city].moods.push(r.mood);
+    if (r.tot && r.tot < 25) agg[r.city].tots.push(r.tot);
+    agg[r.city].n++;
+  });
+
+  const worstMood = moods => {
+    let w=0,wm="Mostly calm";
+    moods.forEach(m=>{if((MOOD_SCORE[m]||0)>w){w=MOOD_SCORE[m];wm=m;}});
+    return wm;
+  };
+
+  let svg = `
+    <defs>
+      <filter id="glow"><feGaussianBlur stdDeviation="1.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1e293b"/></linearGradient>
+    </defs>
+    <rect width="100" height="80" fill="url(#bgGrad)"/>
+    <path d="M5,5 L70,5 L75,15 L80,15 L85,20 L90,25 L95,30 L90,40 L85,55 L80,60 L70,65 L60,70 L50,72 L40,70 L30,65 L20,60 L15,50 L10,40 L5,30 L3,20 Z" fill="#1e3a5f" stroke="#3b82f6" stroke-width="0.4" opacity="0.5"/>
+    <path d="M15,8 Q25,15 30,25 Q35,35 45,42 Q55,48 65,60" fill="none" stroke="#1d4ed8" stroke-width="0.7" opacity="0.25" stroke-dasharray="2,2"/>
+    <text x="36" y="37" fill="#60a5fa" font-size="2.2" opacity="0.3" font-style="italic">Euphrates</text>
+  `;
+
+  Object.entries(CITY_MAP).forEach(([city, pos]) => {
+    const a = agg[city];
+    if (!a) {
+      svg += `<circle cx="${pos.x}" cy="${pos.y}" r="1.3" fill="#475569" opacity="0.35"/>
+              <text x="${pos.x}" y="${pos.y-2.5}" text-anchor="middle" fill="#4b5563" font-size="2">${city}</text>`;
+      return;
+    }
+    const wm = worstMood(a.moods);
+    const col = MOOD_COLOR[wm];
+    const isSel = selectedCity === city;
+    const r = isSel ? 4.5 : 2.5 + Math.min(a.n,3)*0.5;
+    const avgT = a.tots.length>0 ? (a.tots.reduce((s,v)=>s+v,0)/a.tots.length).toFixed(1) : null;
+
+    svg += `
+      <g class="map-city" onclick="selectCity('${city}')">
+        <circle cx="${pos.x}" cy="${pos.y}" r="${r+3}" fill="${col}" opacity="0.1"><animate attributeName="r" values="${r+1};${r+5};${r+1}" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.15;0.03;0.15" dur="3s" repeatCount="indefinite"/></circle>
+        <circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${col}" opacity="0.85" stroke="${isSel?'#fff':'none'}" stroke-width="${isSel?'0.6':'0'}" filter="url(#glow)"/>
+        <text x="${pos.x}" y="${pos.y-r-2}" text-anchor="middle" fill="#e2e8f0" font-size="2.5" font-weight="${isSel?'bold':'normal'}">${city}</text>
+        ${avgT?`<text x="${pos.x}" y="${pos.y+r+3.5}" text-anchor="middle" fill="${col}" font-size="2.2" font-weight="bold">ToT ${avgT}</text>`:''}
+        <text x="${pos.x+r+2}" y="${pos.y+1}" fill="#64748b" font-size="1.8">n=${a.n}</text>
+      </g>`;
+  });
+
+  // Legend
+  svg += `<g transform="translate(2,60)">
+    <rect x="0" y="0" width="28" height="15" rx="1.5" fill="#0f172a" opacity="0.85" stroke="#334155" stroke-width="0.3"/>
+    <text x="2" y="3.5" fill="#94a3b8" font-size="2" font-weight="bold">Public Mood</text>`;
+  [["Mostly calm","#22c55e"],["Worried","#f59e0b"],["Fearful","#ef4444"],["Trying to leave","#7c2d12"]].forEach(([l,c],i) => {
+    svg += `<circle cx="3.5" cy="${6+i*2.5}" r="1" fill="${c}"/><text x="6" y="${6.8+i*2.5}" fill="#cbd5e1" font-size="1.9">${l}</text>`;
+  });
+  svg += `</g>`;
+
+  document.getElementById("syriaMap").innerHTML = svg;
+}
+
+function renderEWS() {
+  const d = getFiltered();
+  if (d.length === 0) return;
+  const avg = (arr, fn) => arr.reduce((s,r)=>s+fn(r),0)/arr.length;
+
+  const moodAvg = avg(d, r=>MOOD_SCORE[r.mood]||0);
+  const jobAvg = avg(d, r=>JOB_SCORE[r.job]||0);
+  const moveAvg = avg(d, r=>MOVE_SCORE[r.movement]||0);
+  const migrAvg = avg(d, r=>MIGR_SCORE[r.migration]||0);
+  const validToT = d.filter(r=>r.tot&&r.tot<25);
+  const totAvg = validToT.length>0 ? validToT.reduce((s,r)=>s+r.tot,0)/validToT.length : 5;
+
+  const score = Math.round(
+    (moodAvg/4*25) + (jobAvg/4*20) + (moveAvg/4*20) + (migrAvg/2*15) + (Math.max(0,1-totAvg/10)*20)
+  );
+
+  let level, color, bg;
+  if (score < 30) { level="STABLE"; color="#22c55e"; bg="#052e16"; }
+  else if (score < 50) { level="WATCH"; color="#f59e0b"; bg="#422006"; }
+  else if (score < 70) { level="WARNING"; color="#f97316"; bg="#431407"; }
+  else { level="ALERT"; color="#ef4444"; bg="#450a0a"; }
+
+  const indicators = [
+    {name:"Public Mood",pct:Math.round(moodAvg/4*100)},
+    {name:"Job Scarcity",pct:Math.round(jobAvg/4*100)},
+    {name:"Movement Restr.",pct:Math.round(moveAvg/4*100)},
+    {name:"Migration Pressure",pct:Math.round(migrAvg/2*100)},
+    {name:"Purchasing Power",pct:Math.round(Math.max(0,1-totAvg/10)*100)},
+  ];
+
+  const panel = document.getElementById("ewsPanel");
+  panel.style.background = bg;
+  panel.style.border = `1px solid ${color}40`;
+
+  panel.innerHTML = `
+    <div class="ews-header">
+      <div><div class="ews-label">Early Warning Score</div><div class="ews-score" style="color:${color}">${score}</div></div>
+      <div class="ews-badge" style="background:${color}">${level}</div>
+    </div>
+    ${indicators.map(ind => {
+      const barCol = ind.pct > 70 ? "#ef4444" : ind.pct > 40 ? "#f59e0b" : "#22c55e";
+      return `<div class="ews-bar-row">
+        <span class="ews-bar-label">${ind.name}</span>
+        <div class="ews-bar-track"><div class="ews-bar-fill" style="width:${ind.pct}%;background:${barCol}"></div></div>
+        <span class="ews-bar-val">${ind.pct}%</span>
+      </div>`;
+    }).join("")}
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid ${color}20;color:var(--text-muted);font-size:10px">
+      Composite index: mood (25%) + jobs (20%) + movement (20%) + migration (15%) + purchasing power (20%). Score 0-100, higher = worse.
+    </div>`;
+}
+
+function renderCityDetail() {
+  const panel = document.getElementById("cityDetail");
+  if (selectedCity === "all") { panel.style.display = "none"; return; }
+
+  const cityData = DATA.filter(r => r.city === selectedCity);
+  if (cityData.length === 0) { panel.style.display = "none"; return; }
+
+  panel.style.display = "block";
+  const latest = cityData[cityData.length - 1];
+  const mc = MOOD_COLOR[latest.mood];
+
+  panel.innerHTML = `
+    <div class="city-detail-header">
+      <div><div class="city-name">${selectedCity}</div><div class="city-date">Latest: ${latest.date} | ${cityData.length} total reports</div></div>
+      <div style="display:flex;gap:6px">
+        <span class="badge" style="background:${mc}20;color:${mc}">${latest.mood}</span>
+        <span class="badge" style="background:#3b82f620;color:#3b82f6">${latest.job} jobs</span>
+      </div>
+    </div>
+    <div class="detail-grid">
+      ${[
+        {l:"Flour 1kg",v:latest.flour?`${latest.flour.toLocaleString()} SYP`:"N/A"},
+        {l:"Rice 1kg",v:latest.rice?`${latest.rice.toLocaleString()} SYP`:"N/A"},
+        {l:"Cooking Oil 1L",v:latest.oil?`${latest.oil.toLocaleString()} SYP`:"N/A"},
+        {l:"Daily Wage (unskilled)",v:latest.wage?`${latest.wage.toLocaleString()} SYP`:"N/A"},
+        {l:"Daily Wage (skilled)",v:latest.wageSkilled?`${latest.wageSkilled.toLocaleString()} SYP`:"N/A"},
+        {l:"Terms of Trade",v:latest.tot?`${latest.tot} kg flour`:"N/A"},
+        {l:"Food Basket (5 items)",v:latest.basket?`${latest.basket.toLocaleString()} SYP`:"N/A"},
+        {l:"Monthly Rent",v:latest.rent&&latest.rent>100?`${latest.rent.toLocaleString()} SYP`:"N/A"},
+        {l:"Movement",v:latest.movement},
+      ].map(i=>`<div class="detail-item"><div class="detail-item-label">${i.l}</div><div class="detail-item-value">${i.v}</div></div>`).join("")}
+    </div>`;
+}
+
+function renderToTChart() {
+  const ctx = document.getElementById("totChart").getContext("2d");
+  if (totChartInst) totChartInst.destroy();
+
+  const activeCities = selectedCity === "all" ? CITIES : [selectedCity];
+  const datasets = activeCities.map((c, i) => {
+    const values = MONTHS.map(m => {
+      const entries = DATA.filter(r => r.city===c && r.month===m && r.tot && r.tot<25);
+      return entries.length > 0 ? +(entries.reduce((s,r)=>s+r.tot,0)/entries.length).toFixed(1) : null;
+    });
+    return { label: c, data: values, backgroundColor: CHART_COLORS[i%CHART_COLORS.length]+"cc", borderColor: CHART_COLORS[i%CHART_COLORS.length], borderWidth: 1, borderRadius: 4 };
+  });
+
+  totChartInst = new Chart(ctx, {
+    type: "bar",
+    data: { labels: MONTHS.map(m=>MONTH_LABELS[m]), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: "#94a3b8", font: { size: 11 } } }, tooltip: { backgroundColor: "#1e293b", titleColor: "#e2e8f0", bodyColor: "#e2e8f0", borderColor: "#334155", borderWidth: 1 } },
+      scales: {
+        x: { ticks: { color: "#94a3b8", font: { size: 11 } }, grid: { color: "#1e293b" } },
+        y: { ticks: { color: "#94a3b8", font: { size: 11 } }, grid: { color: "#1e293b" }, title: { display: true, text: "kg flour / day wage", color: "#64748b", font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+function renderPriceChart() {
+  const ctx = document.getElementById("priceChart").getContext("2d");
+  if (priceChartInst) priceChartInst.destroy();
+
+  const items = ["flour","rice","oil","eggs","water"];
+  const labels = ["Flour 1kg","Rice 1kg","Oil 1L","Eggs 10pc","Water 1.5L"];
+  const colors = ["#3b82f6","#f59e0b","#22c55e","#ef4444","#8b5cf6"];
+
+  const filtered = selectedCity === "all" ? DATA : DATA.filter(r=>r.city===selectedCity);
+
+  const datasets = items.map((item, i) => {
+    const values = MONTHS.map(m => {
+      const entries = filtered.filter(r => r.month===m && r[item]);
+      return entries.length > 0 ? Math.round(entries.reduce((s,r)=>s+r[item],0)/entries.length) : null;
+    });
+    return { label: labels[i], data: values, borderColor: colors[i], backgroundColor: colors[i]+"20", borderWidth: 2, pointRadius: 4, pointBackgroundColor: colors[i], tension: 0.3, fill: false };
+  });
+
+  priceChartInst = new Chart(ctx, {
+    type: "line",
+    data: { labels: MONTHS.map(m=>MONTH_LABELS[m]), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: "#94a3b8", font: { size: 11 } } }, tooltip: { backgroundColor: "#1e293b", titleColor: "#e2e8f0", bodyColor: "#e2e8f0", borderColor: "#334155", borderWidth: 1 } },
+      scales: {
+        x: { ticks: { color: "#94a3b8", font: { size: 11 } }, grid: { color: "#1e293b" } },
+        y: { ticks: { color: "#94a3b8", font: { size: 11 } }, grid: { color: "#1e293b" } }
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const tbody = document.querySelector("#dataTable tbody");
+  const d = getFiltered();
+  tbody.innerHTML = d.map(r => {
+    const mc = MOOD_COLOR[r.mood];
+    const sel = selectedCity === r.city ? ' class="selected"' : '';
+    return `<tr${sel} onclick="selectCity('${r.city}')">
+      <td>${r.date}</td>
+      <td><strong>${r.city}</strong></td>
+      <td>${r.flour?r.flour.toLocaleString():'—'}</td>
+      <td>${r.wage?r.wage.toLocaleString():'—'}</td>
+      <td><strong>${r.tot||'—'}</strong></td>
+      <td><span class="mood-dot" style="background:${mc}"></span>${r.mood}</td>
+      <td>${r.job}</td>
+      <td>${r.movement}</td>
+      <td>${r.migration}</td>
+    </tr>`;
+  }).join("");
+}
+
+function selectCity(city) {
+  selectedCity = selectedCity === city ? "all" : city;
+  document.getElementById("cityFilter").value = selectedCity;
+  render();
+}
+window.selectCity = selectCity;
+
+function render() {
+  renderStats();
+  renderMap();
+  renderEWS();
+  renderCityDetail();
+  renderToTChart();
+  renderPriceChart();
+  renderTable();
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
