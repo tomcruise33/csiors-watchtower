@@ -25,8 +25,32 @@ export const CITY_COORDS = {
 };
 
 /**
+ * Format "D.M.YYYY HH:MM:SS" → "4 Nov 2025"
+ */
+export function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const datePart = dateStr.split(' ')[0];
+  const parts = datePart.split('.');
+  if (parts.length !== 3) return datePart;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parts[0]} ${months[parseInt(parts[1]) - 1]} ${parts[2]}`;
+}
+
+/**
+ * Return background, text colour, and label for a ToT value using WFP thresholds.
+ */
+export function totColor(tot) {
+  if (tot === null || tot === undefined) return { bg: '#47556920', text: '#475569', label: 'N/A' };
+  if (tot < 3)  return { bg: '#ef444425', text: '#ef4444', label: 'EMERGENCY' };
+  if (tot < 5)  return { bg: '#f9731625', text: '#f97316', label: 'CRISIS' };
+  if (tot < 8)  return { bg: '#f59e0b25', text: '#f59e0b', label: 'STRESSED' };
+  if (tot < 12) return { bg: '#22c55e20', text: '#22c55e', label: 'ACCEPTABLE' };
+  return { bg: '#22c55e35', text: '#22c55e', label: 'GOOD' };
+}
+
+/**
  * Fetch data from the JSON file.
- * To switch to an API, change this URL to an endpoint like:
+ * To switch to an API, change the URL to an endpoint like:
  *   const res = await fetch('/api/reports?from=...&to=...')
  */
 export async function fetchData() {
@@ -34,59 +58,61 @@ export async function fetchData() {
   if (!res.ok) throw new Error('Failed to load field data');
   const raw = await res.json();
   return raw
-    .filter(r => r.quality !== 'suspect')   // exclude suspect entries by default
+    .filter(r => r.quality !== 'suspect')
     .map(normalizeRecord);
 }
 
 /**
  * Normalize a raw record into a consistent shape.
+ * Detects currency mismatches at runtime (flour < 500 SYP → flagged).
  */
 function normalizeRecord(r) {
+  const currencyFlag = r.currency_flag ||
+    (r.flour && r.flour > 0 && r.flour < 500 ? 'likely_usd' : null);
+
+  const tot = (r.tot_flour_kg && r.tot_flour_kg < 25) ? r.tot_flour_kg : null;
+
   return {
-    date:      r.date,
-    month:     r.month,
-    city:      r.city,
-    city_ar:   r.city_ar,
-    lat:       r.lat,
-    lon:       r.lon,
-    flour:     r.flour,
-    rice:      r.rice,
-    oil:       r.oil,
-    eggs:      r.eggs,
-    water:     r.water,
-    gasoline:  r.gasoline,
-    diesel:    r.diesel,
-    lpg:       r.lpg,
-    wage:      r.wage_unskilled,
+    date:        r.date.split(' ')[0],   // strip timestamp
+    month:       r.month,
+    city:        r.city,
+    city_ar:     r.city_ar,
+    lat:         r.lat,
+    lon:         r.lon,
+    flour:       r.flour,
+    rice:        r.rice,
+    oil:         r.oil,
+    eggs:        r.eggs,
+    water:       r.water,
+    gasoline:    r.gasoline,
+    diesel:      r.diesel,
+    lpg:         r.lpg,
+    wage:        r.wage_unskilled,
     wageSkilled: r.wage_skilled,
-    rent:      r.rent,
-    job:       r.job_availability,
-    tot:       r.tot_flour_kg,
-    basket:    r.food_basket,
-    mood:      r.mood,
-    movement:  r.movement,
-    migration: r.migration,
-    quality:   r.quality,
+    rent:        r.rent,
+    job:         r.job_availability,
+    tot,
+    basket:      r.food_basket,
+    mood:        r.mood,
+    movement:    r.movement,
+    migration:   r.migration,
+    quality:     r.quality,
+    currency_flag: currencyFlag,
+    validPrices:   !currencyFlag,
   };
 }
 
-/**
- * Get sorted unique months from data array.
- */
+/** Get sorted unique months from data array. */
 export function getMonths(data) {
   return [...new Set(data.map(r => r.month))].sort();
 }
 
-/**
- * Get sorted unique cities from data array.
- */
+/** Get sorted unique cities from data array. */
 export function getCities(data) {
   return [...new Set(data.map(r => r.city))].sort();
 }
 
-/**
- * Filter data by month range and city.
- */
+/** Filter data by month range and city. */
 export function filterData(data, { fromMonth, toMonth, city }) {
   return data.filter(r => {
     if (fromMonth && r.month < fromMonth) return false;
@@ -96,16 +122,22 @@ export function filterData(data, { fromMonth, toMonth, city }) {
   });
 }
 
+/** Return only entries with valid SYP prices. */
+export function getValidPriceData(data) {
+  return data.filter(r => r.validPrices);
+}
+
 /**
  * Aggregate data by city: compute average ToT, worst mood, report count.
+ * Uses only validPrices entries for ToT/basket averages.
  */
 export function aggregateByCity(data) {
   const agg = {};
   data.forEach(r => {
     if (!agg[r.city]) agg[r.city] = { moods: [], tots: [], baskets: [], reports: [] };
     agg[r.city].moods.push(r.mood);
-    if (r.tot && r.tot < 25) agg[r.city].tots.push(r.tot);
-    if (r.basket) agg[r.city].baskets.push(r.basket);
+    if (r.validPrices && r.tot != null) agg[r.city].tots.push(r.tot);
+    if (r.validPrices && r.basket)      agg[r.city].baskets.push(r.basket);
     agg[r.city].reports.push(r);
   });
 
@@ -141,12 +173,12 @@ export function compareMonths(data, prevMonth, currMonth) {
   };
 
   const metrics = [
-    { key: 'tot',    label: 'Avg ToT',        fn: r => r.tot && r.tot < 25 ? r.tot : null, unit: 'kg', decimals: 1, lowerBetter: false },
-    { key: 'basket', label: 'Food Basket',     fn: r => r.basket,  unit: 'SYP', decimals: 0, lowerBetter: true },
-    { key: 'flour',  label: 'Flour 1kg',       fn: r => r.flour,   unit: 'SYP', decimals: 0, lowerBetter: true },
+    { key: 'tot',    label: 'Avg ToT',        fn: r => r.validPrices && r.tot != null ? r.tot : null, unit: 'kg', decimals: 1, lowerBetter: false },
+    { key: 'basket', label: 'Food Basket',     fn: r => r.validPrices ? r.basket  : null, unit: 'SYP', decimals: 0, lowerBetter: true },
+    { key: 'flour',  label: 'Flour 1kg',       fn: r => r.validPrices ? r.flour   : null, unit: 'SYP', decimals: 0, lowerBetter: true },
     { key: 'wage',   label: 'Daily Wage',      fn: r => r.wage,    unit: 'SYP', decimals: 0, lowerBetter: false },
     { key: 'mood',   label: 'Mood Score',      fn: r => MOOD_SCORE[r.mood] || 0, unit: '/4', decimals: 1, lowerBetter: true },
-    { key: 'jobs',   label: 'Job Scarcity',    fn: r => JOB_SCORE[r.job] || 0,  unit: '/4', decimals: 1, lowerBetter: true },
+    { key: 'jobs',   label: 'Job Scarcity',    fn: r => JOB_SCORE[r.job]  || 0, unit: '/4', decimals: 1, lowerBetter: true },
     { key: 'move',   label: 'Movement Restr.', fn: r => MOVE_SCORE[r.movement] || 0, unit: '/4', decimals: 1, lowerBetter: true },
     { key: 'migr',   label: 'Migration Pres.', fn: r => MIGR_SCORE[r.migration] ?? 0, unit: '/2', decimals: 1, lowerBetter: true },
   ];
@@ -166,9 +198,7 @@ export function compareMonths(data, prevMonth, currMonth) {
   });
 }
 
-/**
- * Format month code to human label ("2025-11" → "Nov 2025").
- */
+/** Format month code to human label ("2025-11" → "Nov 2025"). */
 export function fmtMonth(m) {
   const [y, mo] = m.split('-');
   const d = new Date(+y, +mo - 1, 1);

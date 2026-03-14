@@ -10,8 +10,9 @@
   },
   "dependencies": {
     "chart.js": "^4.4.1",
-    "leaflet": "^1.9.4",
-    "html2pdf.js": "^0.10.1"
+    "chartjs-plugin-annotation": "^3.1.0",
+    "html2pdf.js": "^0.10.1",
+    "leaflet": "^1.9.4"
   },
   "devDependencies": {
     "vite": "^5.0.0"

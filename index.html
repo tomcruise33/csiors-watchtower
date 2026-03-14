@@ -38,6 +38,9 @@
   <!-- Stats row -->
   <div class="stats-row" id="statsRow"></div>
 
+  <!-- Key Findings -->
+  <div class="findings" id="findings" style="display:none"></div>
+
   <!-- Map + EWS -->
   <div class="grid-2-1">
     <div>
@@ -66,12 +69,14 @@
       <div class="card-title">Terms of Trade Index</div>
       <div class="card-sub">kg of flour purchasable with 1 day unskilled wage (higher = better)</div>
       <div class="chart-wrap"><canvas id="totChart"></canvas></div>
-      <div class="chart-note">WFP benchmark: ToT &lt; 5 = crisis threshold. Below 3 = emergency food insecurity.</div>
+      <div class="chart-note">WFP benchmarks: red line = emergency (&lt;3), orange = crisis (&lt;5), green = acceptable (&gt;8)</div>
+      <div class="chart-sample" id="totSample"></div>
     </div>
     <div class="card">
-      <div class="card-title">Food Prices (SYP)</div>
-      <div class="card-sub">Average prices across reporting locations</div>
+      <div class="card-title">Food Basket Cost</div>
+      <div class="card-sub">5-item basket (flour, rice, oil, eggs, water) — monthly average per city</div>
       <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      <div class="chart-sample" id="priceSample"></div>
     </div>
   </div>
 
@@ -80,7 +85,7 @@
     <div class="table-header">
       <div>
         <div class="card-title">All Reports</div>
-        <div class="card-sub">Click column headers to sort · Click rows to select city</div>
+        <div class="card-sub">Click column headers to sort · Click rows to select city · <span id="tableCount"></span></div>
       </div>
       <input class="search-input" id="tableSearch" type="search" placeholder="Search city or mood...">
     </div>
@@ -106,7 +111,7 @@
 
   <div class="footer">
     <span>CSIORS.org — Czech-Slovak Institute of Oriental Studies | Field monitoring network</span>
-    <span>Methodology: WFP JMMI-compatible | Updated: Monthly | contact@csiors.org</span>
+    <span id="footerMeta">Methodology: WFP JMMI-compatible | Updated: Monthly | contact@csiors.org</span>
   </div>
 </div>
 

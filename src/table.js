@@ -1,7 +1,7 @@
 // ============================================================
 // table.js — Sortable data table
 // ============================================================
-import { MOOD_COLOR } from './data.js';
+import { MOOD_COLOR, totColor, formatDate } from './data.js';
 
 let sortCol     = 'date';
 let sortDir     = 'desc';
@@ -38,16 +38,33 @@ export function renderTable(data, selectedCity) {
   );
   rows = sortRows(rows);
 
+  // Row count
+  const countEl = document.getElementById('tableCount');
+  if (countEl) countEl.textContent = `Showing ${rows.length} report${rows.length !== 1 ? 's' : ''}`;
+
   tbody.innerHTML = rows.map(r => {
     const mc  = MOOD_COLOR[r.mood] || '#64748b';
-    const tot = r.tot && r.tot < 25 ? r.tot : '—';
+    const tc  = totColor(r.tot);
     const sel = selectedCity === r.city;
+
+    // ToT colored badge
+    const totCell = r.tot != null
+      ? `<span class="tot-badge" style="background:${tc.bg};color:${tc.text}">${r.tot}</span>`
+      : '—';
+
+    // Flour: asterisk + orange if currency-flagged
+    const flourCell = r.validPrices
+      ? (r.flour ? r.flour.toLocaleString() : '—')
+      : (r.flour
+          ? `<span style="color:var(--orange)" title="Likely ${r.currency_flag === 'likely_usd' ? 'USD' : 'TRY'} — excluded from averages">${r.flour}*</span>`
+          : '—');
+
     return `<tr${sel ? ' class="selected"' : ''} data-city="${r.city}">
-      <td>${r.date}</td>
+      <td>${formatDate(r.date)}</td>
       <td><strong>${r.city}</strong></td>
-      <td>${r.flour ? r.flour.toLocaleString() : '—'}</td>
-      <td>${r.wage  ? r.wage.toLocaleString()  : '—'}</td>
-      <td><strong>${tot}</strong></td>
+      <td>${flourCell}</td>
+      <td>${r.wage ? r.wage.toLocaleString() : '—'}</td>
+      <td>${totCell}</td>
       <td><span class="mood-dot" style="background:${mc}"></span>${r.mood || '—'}</td>
       <td>${r.job || '—'}</td>
       <td>${r.movement || '—'}</td>
@@ -66,7 +83,7 @@ function sortRows(rows) {
     city:      r => r.city,
     flour:     r => r.flour || 0,
     wage:      r => r.wage  || 0,
-    tot:       r => (r.tot && r.tot < 25 ? r.tot : 0),
+    tot:       r => (r.tot != null ? r.tot : -1),
     mood:      r => r.mood      || '',
     job:       r => r.job       || '',
     movement:  r => r.movement  || '',

@@ -51,7 +51,8 @@
     "mood": "Mostly calm",
     "movement": "Unrestricted",
     "migration": "Several families",
-    "quality": "suspect"
+    "quality": "suspect",
+    "currency_flag": "likely_usd"
   },
   {
     "date": "4.11.2025 15:45:59",
@@ -73,7 +74,7 @@
     "wage_skilled": 80000,
     "rent": 1000000,
     "job_availability": "Very low",
-    "tot_flour_kg": 4.0,
+    "tot_flour_kg": 4,
     "food_basket": 87000,
     "mood": "Worried",
     "movement": "Unrestricted",
@@ -100,7 +101,7 @@
     "wage_skilled": 60000,
     "rent": 800000,
     "job_availability": "Low",
-    "tot_flour_kg": 5.0,
+    "tot_flour_kg": 5,
     "food_basket": 53000,
     "mood": "Worried",
     "movement": "Significantly restricted",
@@ -127,7 +128,7 @@
     "wage_skilled": 70000,
     "rent": 700000,
     "job_availability": "Medium",
-    "tot_flour_kg": 6.0,
+    "tot_flour_kg": 6,
     "food_basket": 53000,
     "mood": "Fearful",
     "movement": "Slightly restricted",
@@ -159,7 +160,8 @@
     "mood": "Mostly calm",
     "movement": "Slightly restricted",
     "migration": "Several families",
-    "quality": "suspect"
+    "quality": "suspect",
+    "currency_flag": "likely_usd"
   },
   {
     "date": "4.11.2025 20:56:26",
@@ -208,7 +210,7 @@
     "wage_skilled": 120000,
     "rent": 40,
     "job_availability": "Very low",
-    "tot_flour_kg": 30.0,
+    "tot_flour_kg": 30,
     "food_basket": 54500,
     "mood": "Worried",
     "movement": "Significantly restricted",
@@ -267,7 +269,8 @@
     "mood": "Mostly calm",
     "movement": "Slightly restricted",
     "migration": "Mostly individuals",
-    "quality": "suspect"
+    "quality": "suspect",
+    "currency_flag": "likely_usd"
   },
   {
     "date": "3.12.2025 18:44:03",
@@ -343,7 +346,7 @@
     "wage_skilled": 75000,
     "rent": 1500000,
     "job_availability": "Medium",
-    "tot_flour_kg": 6.0,
+    "tot_flour_kg": 6,
     "food_basket": 56500,
     "mood": "Mostly calm",
     "movement": "Slightly restricted",
