@@ -35,11 +35,21 @@
 <!-- MAIN -->
 <div class="container" id="dashboardRoot">
 
+  <!-- Executive summary bar -->
+  <div class="summary-bar" id="summaryBar"></div>
+
   <!-- Stats row -->
   <div class="stats-row" id="statsRow"></div>
 
   <!-- Key Findings -->
   <div class="findings" id="findings" style="display:none"></div>
+
+  <!-- City Comparison — PRIMARY analytical view -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">City Comparison — Latest Reports</div>
+    <div class="card-sub">One row per city, most recent observation. Sorted by severity. Click to explore.</div>
+    <div id="cityComparison"></div>
+  </div>
 
   <!-- Map + EWS -->
   <div class="grid-2-1">
@@ -64,17 +74,17 @@
   </div>
 
   <!-- Charts -->
-  <div class="grid-2">
+  <div class="grid-2" id="chartsSection">
     <div class="card">
-      <div class="card-title">Terms of Trade Index</div>
-      <div class="card-sub">kg of flour purchasable with 1 day unskilled wage (higher = better)</div>
+      <div id="totChartTitle" class="card-title">Terms of Trade Index</div>
+      <div id="totChartSub" class="card-sub">kg of flour purchasable with 1 day unskilled wage (higher = better)</div>
       <div class="chart-wrap"><canvas id="totChart"></canvas></div>
       <div class="chart-note">WFP benchmarks: red line = emergency (&lt;3), orange = crisis (&lt;5), green = acceptable (&gt;8)</div>
       <div class="chart-sample" id="totSample"></div>
     </div>
     <div class="card">
-      <div class="card-title">Food Basket Cost</div>
-      <div class="card-sub">5-item basket (flour, rice, oil, eggs, water) — monthly average per city</div>
+      <div id="priceChartTitle" class="card-title">Food Basket Cost</div>
+      <div id="priceChartSub" class="card-sub">5-item basket (flour, rice, oil, eggs, water) — monthly average per city</div>
       <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
       <div class="chart-sample" id="priceSample"></div>
     </div>

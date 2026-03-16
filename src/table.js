@@ -81,6 +81,10 @@ function sortRows(rows) {
   const fns = {
     date:      r => r.date,
     city:      r => r.city,
+    date: r => {
+      const [d, m, y] = r.date.split('.');
+      return new Date(+y, +m - 1, +d).getTime();
+    },
     flour:     r => r.flour || 0,
     wage:      r => r.wage  || 0,
     tot:       r => (r.tot != null ? r.tot : -1),
