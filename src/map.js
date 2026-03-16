@@ -29,8 +29,19 @@ export function initMap(onCityClick) {
   markersLayer = L.layerGroup().addTo(mapInstance);
 }
 
-export function updateMap(data, selectedCity) {
+export function updateMap(data, selectedCity, selectedCountry = 'all') {
   if (!mapInstance || !markersLayer) return;
+
+  // Show placeholder for non-Syria countries (map is Syria-optimised)
+  let placeholder = document.getElementById('mapPlaceholder');
+  const showSyria = selectedCountry === 'all' || selectedCountry === 'Syria';
+  if (placeholder) placeholder.style.display = showSyria ? 'none' : 'flex';
+  if (!showSyria) {
+    if (placeholder) placeholder.textContent =
+      `Map view is optimised for Syria. ${selectedCountry} data is available in the City Comparison table and charts below.`;
+    return;
+  }
+
   markersLayer.clearLayers();
 
   const agg = aggregateByCity(data);

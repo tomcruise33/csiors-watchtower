@@ -59,6 +59,25 @@ JOB_SCORE = {"High": 1, "Medium": 2, "Low": 3, "Very low": 4}
 MOVE_SCORE = {"Unrestricted": 1, "Slightly restricted": 2, "Significantly restricted": 3, "Very restricted": 4}
 MIGR_SCORE = {"None": 0, "Mostly individuals": 1, "Several families": 2}
 
+# City → country mapping (mirrors src/data.js COUNTRY_FOR_CITY)
+COUNTRY_FOR_CITY_PY = {
+    "Raqqa": "Syria", "Al-Hasakah": "Syria", "Deir ez-Zor": "Syria",
+    "Al-Tabqa": "Syria", "Al-Busayrah": "Syria", "Al-Suwar": "Syria",
+    "Al-Mayadin": "Syria", "Aleppo": "Syria",
+    "Beirut": "Lebanon", "Tripoli (Lebanon)": "Lebanon", "Sidon": "Lebanon", "Bekaa Valley": "Lebanon",
+    "Amman": "Jordan", "Zaatari": "Jordan", "Irbid": "Jordan",
+    "Istanbul": "Turkey", "Gaziantep": "Turkey", "Şanlıurfa": "Turkey", "Hatay": "Turkey",
+    "Baghdad": "Iraq", "Erbil": "Iraq", "Mosul": "Iraq",
+    "Casablanca": "Morocco", "Rabat": "Morocco", "Tangier": "Morocco", "Nador": "Morocco",
+    "N'Djamena": "Chad", "Abéché": "Chad",
+    "Dakar": "Senegal", "Saint-Louis": "Senegal",
+    "Addis Ababa": "Ethiopia", "Dire Dawa": "Ethiopia",
+    "Khartoum": "Sudan", "Port Sudan": "Sudan",
+    "Cairo": "Egypt", "Alexandria": "Egypt",
+    "Tripoli (Libya)": "Libya", "Benghazi": "Libya",
+    "Tunis": "Tunisia",
+}
+
 
 # ==============================================================
 # LAYER 1 — RULE-BASED ANALYSIS
@@ -121,9 +140,18 @@ def _normalize(r):
     move_val = r.get("movement", "")
     if isinstance(move_val, str):
         out["movement_restriction"] = move_val  # keep original key too
+    # country derivation (flat JSON has no country; derive from city or explicit field)
+    if "country_normalized" not in out:
+        city_name = r.get("city", "")
+        out["country_normalized"] = COUNTRY_FOR_CITY_PY.get(city_name, "Syria")
     # currency / validity flag
     flour = r.get("flour")
-    out.setdefault("currency_flag", "likely_usd" if flour and flour < 500 else None)
+    explicit_currency = (r.get("currency") or "").lower()
+    if explicit_currency and explicit_currency not in ("syp", "ل.س", ""):
+        # Explicit non-SYP currency from v2 form
+        out.setdefault("currency_flag", explicit_currency)
+    else:
+        out.setdefault("currency_flag", "likely_usd" if flour and flour < 500 else None)
     out.setdefault("valid_prices",  not bool(out["currency_flag"]))
     return out
 
@@ -139,9 +167,20 @@ def parse_date(date_str):
     return None
 
 
+def get_entries(entries, country=None):
+    """
+    Filter entries: exclude suspect quality, optionally filter by country.
+    country=None returns all valid entries (multi-country).
+    """
+    result = [e for e in entries if e.get("quality", "") != "suspect"]
+    if country:
+        result = [e for e in result if e.get("country_normalized", "Syria") == country]
+    return result
+
+
+# Backward-compatible alias
 def get_syria_entries(entries):
-    """Filter to Syria-only entries (all current records are Syria)."""
-    return [e for e in entries if e.get("quality", "") != "suspect"]
+    return get_entries(entries, country="Syria")
 
 
 def validate_entries(entries):
@@ -164,14 +203,18 @@ def validate_entries(entries):
         if isinstance(flour, dict):
             flour_price = flour.get("price")
 
-        if flour_price and 0 < flour_price < MIN_FLOUR_SYP:
+        # Only apply SYP-specific thresholds when no explicit non-SYP currency
+        explicit_currency = (e.get("currency") or "").lower()
+        is_syp = not explicit_currency or explicit_currency in ("syp", "ل.س")
+
+        if is_syp and flour_price and 0 < flour_price < MIN_FLOUR_SYP:
             issues.append({**base,
                 "severity": "high",
                 "category": "currency",
                 "message": f"Flour price {flour_price} is too low for SYP — likely USD or TRY. Excluded from averages.",
                 "auto_action": "excluded_from_averages"
             })
-        elif flour_price and flour_price > MAX_FLOUR_SYP:
+        elif is_syp and flour_price and flour_price > MAX_FLOUR_SYP:
             issues.append({**base,
                 "severity": "medium",
                 "category": "data_entry",
@@ -180,13 +223,13 @@ def validate_entries(entries):
 
         # --- Wage validation ---
         wage = e.get("employment", {}).get("wage_unskilled_daily")
-        if wage and wage < MIN_WAGE_SYP:
+        if is_syp and wage and wage < MIN_WAGE_SYP:
             issues.append({**base,
                 "severity": "medium",
                 "category": "currency",
                 "message": f"Daily wage {wage} too low for SYP — possible currency mismatch.",
             })
-        elif wage and wage > MAX_WAGE_SYP:
+        elif is_syp and wage and wage > MAX_WAGE_SYP:
             issues.append({**base,
                 "severity": "low",
                 "category": "data_entry",
@@ -319,9 +362,9 @@ def detect_anomalies(entries):
     return anomalies
 
 
-def compute_summary_stats(entries):
+def compute_summary_stats(entries, country=None):
     """Compute aggregate statistics for the situation brief."""
-    syria = get_syria_entries(entries)
+    syria = get_entries(entries, country)
     valid = [e for e in syria if not e.get("currency_flag")]
 
     # ToT stats
@@ -430,9 +473,9 @@ def compute_summary_stats(entries):
     }
 
 
-def city_breakdown(entries):
+def city_breakdown(entries, country=None):
     """Per-city latest status for the analysis JSON."""
-    syria = get_syria_entries(entries)
+    syria = get_entries(entries, country)
     by_city = defaultdict(list)
     for e in syria:
         city = e.get("city_normalized", "")
@@ -579,16 +622,17 @@ IMPORTANT RULES:
         return None
 
 
-def generate_rule_based_brief(summary, issues, anomalies, city_data):
+def generate_rule_based_brief(summary, issues, anomalies, city_data, country_label=None):
     """
     Fallback: generate a structured brief without AI.
     Less eloquent but always works and costs nothing.
     """
     s = summary
     now = datetime.now(timezone.utc).strftime("%-d %b %Y")
+    region = country_label or "Multi-Country"
 
     lines = [
-        f"# CSIORS Syria Situation Brief",
+        f"# CSIORS {region} Situation Brief",
         f"",
         f"**Generated:** {now} | **Period:** {s['date_range']['from']} – {s['date_range']['to']} | "
         f"**Reports:** {s['total_reports']} across {s['city_count']} locations",
@@ -687,12 +731,14 @@ def main():
     # Load
     print("\n1. Loading data...")
     entries, metadata = load_data()
-    syria = get_syria_entries(entries)
-    print(f"   {len(entries)} total entries, {len(syria)} Syria")
+    valid_entries = get_entries(entries)
+    countries_present = sorted(set(e.get("country_normalized", "Syria") for e in valid_entries))
+    country_label = countries_present[0] if len(countries_present) == 1 else "Multi-Country"
+    print(f"   {len(entries)} total entries, {len(valid_entries)} valid ({', '.join(countries_present)})")
 
     # Layer 1: Validation
     print("\n2. Running validation checks...")
-    issues = validate_entries(syria)
+    issues = validate_entries(valid_entries)
     high = sum(1 for i in issues if i["severity"] == "high")
     med = sum(1 for i in issues if i["severity"] == "medium")
     low = sum(1 for i in issues if i["severity"] == "low")
@@ -703,7 +749,7 @@ def main():
 
     # Layer 1: Anomaly detection
     print("\n3. Detecting anomalies...")
-    anomalies = detect_anomalies(syria)
+    anomalies = detect_anomalies(valid_entries)
     print(f"   {len(anomalies)} anomalies detected")
     for a in anomalies:
         icon = "🚨" if a["severity"] == "high" else "⚠️"
@@ -726,6 +772,7 @@ def main():
     # Build analysis JSON
     analysis = {
         "generated": datetime.now(timezone.utc).isoformat(),
+        "countries": countries_present,
         "summary": summary,
         "city_breakdown": city_data,
         "issues": issues,
@@ -740,7 +787,7 @@ def main():
         brief = generate_brief_with_claude(summary, issues, anomalies, city_data)
 
     if not brief:
-        brief = generate_rule_based_brief(summary, issues, anomalies, city_data)
+        brief = generate_rule_based_brief(summary, issues, anomalies, city_data, country_label=country_label)
         print("   (rule-based brief generated)")
     else:
         print("   (AI brief generated)")

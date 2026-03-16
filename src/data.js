@@ -12,6 +12,25 @@ export const MIGR_SCORE  = { "None": 0, "Mostly individuals": 1, "Several famili
 
 export const CHART_COLORS = ["#3b82f6","#f59e0b","#22c55e","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
 
+// City → country mapping (used to derive country for legacy flat JSON entries)
+export const COUNTRY_FOR_CITY = {
+  "Raqqa": "Syria", "Al-Hasakah": "Syria", "Deir ez-Zor": "Syria",
+  "Al-Tabqa": "Syria", "Al-Busayrah": "Syria", "Al-Suwar": "Syria",
+  "Al-Mayadin": "Syria", "Aleppo": "Syria",
+  "Beirut": "Lebanon", "Tripoli (Lebanon)": "Lebanon", "Sidon": "Lebanon", "Bekaa Valley": "Lebanon",
+  "Amman": "Jordan", "Zaatari": "Jordan", "Irbid": "Jordan",
+  "Istanbul": "Turkey", "Gaziantep": "Turkey", "Şanlıurfa": "Turkey", "Hatay": "Turkey",
+  "Baghdad": "Iraq", "Erbil": "Iraq", "Mosul": "Iraq",
+  "Casablanca": "Morocco", "Rabat": "Morocco", "Tangier": "Morocco", "Nador": "Morocco",
+  "N'Djamena": "Chad", "Abéché": "Chad",
+  "Dakar": "Senegal", "Saint-Louis": "Senegal",
+  "Addis Ababa": "Ethiopia", "Dire Dawa": "Ethiopia",
+  "Khartoum": "Sudan", "Port Sudan": "Sudan",
+  "Cairo": "Egypt", "Alexandria": "Egypt",
+  "Tripoli (Libya)": "Libya", "Benghazi": "Libya",
+  "Tunis": "Tunisia",
+};
+
 // City geographic coordinates [lat, lng]
 export const CITY_COORDS = {
   "Raqqa":      [35.95, 39.01],
@@ -67,36 +86,45 @@ export async function fetchData() {
  * Detects currency mismatches at runtime (flour < 500 SYP → flagged).
  */
 function normalizeRecord(r) {
+  // Currency: explicit v2 field takes precedence over heuristic
+  const explicitCurrency = (r.currency || '').toLowerCase();
   const currencyFlag = r.currency_flag ||
-    (r.flour && r.flour > 0 && r.flour < 500 ? 'likely_usd' : null);
+    (explicitCurrency && explicitCurrency !== 'syp' && explicitCurrency !== 'ل.س'
+      ? explicitCurrency
+      : (r.flour && r.flour > 0 && r.flour < 500 ? 'likely_usd' : null));
 
   const tot = (r.tot_flour_kg && r.tot_flour_kg < 25) ? r.tot_flour_kg : null;
 
+  // Country: use explicit field (KoboToolbox v2) or derive from city
+  const country = r.country_normalized || r.country || COUNTRY_FOR_CITY[r.city] || 'Unknown';
+
   return {
-    date:        r.date.split(' ')[0],   // strip timestamp
-    month:       r.month,
-    city:        r.city,
-    city_ar:     r.city_ar,
-    lat:         r.lat,
-    lon:         r.lon,
-    flour:       r.flour,
-    rice:        r.rice,
-    oil:         r.oil,
-    eggs:        r.eggs,
-    water:       r.water,
-    gasoline:    r.gasoline,
-    diesel:      r.diesel,
-    lpg:         r.lpg,
-    wage:        r.wage_unskilled,
-    wageSkilled: r.wage_skilled,
-    rent:        r.rent,
-    job:         r.job_availability,
+    date:          r.date.split(' ')[0],   // strip timestamp
+    month:         r.month,
+    city:          r.city,
+    city_ar:       r.city_ar,
+    country,
+    lat:           r.lat,
+    lon:           r.lon,
+    flour:         r.flour,
+    rice:          r.rice,
+    oil:           r.oil,
+    eggs:          r.eggs,
+    water:         r.water,
+    gasoline:      r.gasoline,
+    diesel:        r.diesel,
+    lpg:           r.lpg,
+    wage:          r.wage_unskilled,
+    wageSkilled:   r.wage_skilled,
+    rent:          r.rent,
+    job:           r.job_availability,
     tot,
-    basket:      r.food_basket,
-    mood:        r.mood,
-    movement:    r.movement,
-    migration:   r.migration,
-    quality:     r.quality,
+    basket:        r.food_basket,
+    mood:          r.mood,
+    movement:      r.movement,
+    migration:     r.migration,
+    quality:       r.quality,
+    currency:      explicitCurrency || 'syp',
     currency_flag: currencyFlag,
     validPrices:   !currencyFlag,
   };
@@ -107,17 +135,24 @@ export function getMonths(data) {
   return [...new Set(data.map(r => r.month))].sort();
 }
 
-/** Get sorted unique cities from data array. */
-export function getCities(data) {
-  return [...new Set(data.map(r => r.city))].sort();
+/** Get sorted unique cities from data array, optionally filtered by country. */
+export function getCities(data, country = 'all') {
+  const filtered = country !== 'all' ? data.filter(r => r.country === country) : data;
+  return [...new Set(filtered.map(r => r.city))].sort();
 }
 
-/** Filter data by month range and city. */
-export function filterData(data, { fromMonth, toMonth, city }) {
+/** Get sorted unique countries from data array. */
+export function getCountries(data) {
+  return [...new Set(data.map(r => r.country).filter(Boolean))].sort();
+}
+
+/** Filter data by month range, city, and country. */
+export function filterData(data, { fromMonth, toMonth, city, country }) {
   return data.filter(r => {
     if (fromMonth && r.month < fromMonth) return false;
     if (toMonth   && r.month > toMonth)   return false;
-    if (city && city !== 'all' && r.city !== city) return false;
+    if (country && country !== 'all' && r.country !== country) return false;
+    if (city    && city    !== 'all' && r.city    !== city)    return false;
     return true;
   });
 }

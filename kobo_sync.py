@@ -57,14 +57,86 @@ OUTPUT_PATH = Path("public/data/syria_field_data.json")
 
 # City coordinate lookup
 CITY_COORDS = {
-    "Raqqa":        {"lat": 35.95, "lon": 39.01},
-    "Al-Hasakah":   {"lat": 36.50, "lon": 40.75},
-    "Al-Busayrah":  {"lat": 35.15, "lon": 40.25},
-    "Al-Suwar":     {"lat": 35.55, "lon": 40.10},
-    "Deir ez-Zor":  {"lat": 35.33, "lon": 40.14},
-    "Al-Tabqa":     {"lat": 35.83, "lon": 38.57},
-    "Al-Mayadin":   {"lat": 35.02, "lon": 40.45},
-    "Aleppo":       {"lat": 36.20, "lon": 37.17},
+    # Syria
+    "Raqqa":            {"lat": 35.95, "lon": 39.01},
+    "Al-Hasakah":       {"lat": 36.50, "lon": 40.75},
+    "Al-Busayrah":      {"lat": 35.15, "lon": 40.25},
+    "Al-Suwar":         {"lat": 35.55, "lon": 40.10},
+    "Deir ez-Zor":      {"lat": 35.33, "lon": 40.14},
+    "Al-Tabqa":         {"lat": 35.83, "lon": 38.57},
+    "Al-Mayadin":       {"lat": 35.02, "lon": 40.45},
+    "Aleppo":           {"lat": 36.20, "lon": 37.17},
+    # Lebanon
+    "Beirut":           {"lat": 33.89, "lon": 35.50},
+    "Tripoli (Lebanon)":{"lat": 34.43, "lon": 35.85},
+    "Sidon":            {"lat": 33.56, "lon": 35.37},
+    "Bekaa Valley":     {"lat": 33.85, "lon": 35.90},
+    # Jordan
+    "Amman":            {"lat": 31.95, "lon": 35.93},
+    "Zaatari":          {"lat": 32.29, "lon": 37.33},
+    "Irbid":            {"lat": 32.55, "lon": 35.85},
+    # Turkey
+    "Istanbul":         {"lat": 41.01, "lon": 28.98},
+    "Gaziantep":        {"lat": 37.06, "lon": 37.38},
+    "Şanlıurfa":        {"lat": 37.16, "lon": 38.79},
+    "Hatay":            {"lat": 36.20, "lon": 36.16},
+    # Iraq
+    "Baghdad":          {"lat": 33.34, "lon": 44.40},
+    "Erbil":            {"lat": 36.19, "lon": 44.01},
+    "Mosul":            {"lat": 36.34, "lon": 43.13},
+    # Morocco
+    "Casablanca":       {"lat": 33.57, "lon": -7.59},
+    "Rabat":            {"lat": 34.02, "lon": -6.84},
+    "Tangier":          {"lat": 35.77, "lon": -5.80},
+    "Nador":            {"lat": 35.17, "lon": -2.93},
+    # Chad
+    "N'Djamena":        {"lat": 12.13, "lon": 15.05},
+    "Abéché":           {"lat": 13.83, "lon": 20.83},
+    # Senegal
+    "Dakar":            {"lat": 14.69, "lon": -17.44},
+    "Saint-Louis":      {"lat": 16.02, "lon": -16.49},
+    # Ethiopia
+    "Addis Ababa":      {"lat": 9.02,  "lon": 38.75},
+    "Dire Dawa":        {"lat": 9.60,  "lon": 41.86},
+    # Sudan
+    "Khartoum":         {"lat": 15.59, "lon": 32.53},
+    "Port Sudan":       {"lat": 19.61, "lon": 37.22},
+    # Egypt
+    "Cairo":            {"lat": 30.04, "lon": 31.24},
+    "Alexandria":       {"lat": 31.20, "lon": 29.92},
+    # Libya
+    "Tripoli (Libya)":  {"lat": 32.90, "lon": 13.18},
+    "Benghazi":         {"lat": 32.11, "lon": 20.07},
+    # Tunisia
+    "Tunis":            {"lat": 36.81, "lon": 10.17},
+}
+
+# v2 choice values → display country names
+COUNTRY_NORMALIZE = {
+    "syria": "Syria",      "سوريا": "Syria",
+    "lebanon": "Lebanon",  "لبنان": "Lebanon",
+    "jordan": "Jordan",    "الأردن": "Jordan",
+    "iraq": "Iraq",        "العراق": "Iraq",
+    "turkey": "Turkey",    "تركيا": "Turkey",
+    "morocco": "Morocco",  "المغرب": "Morocco",
+    "chad": "Chad",        "تشاد": "Chad",
+    "senegal": "Senegal",  "السنغال": "Senegal",
+    "ethiopia": "Ethiopia","إثيوبيا": "Ethiopia",
+    "sudan": "Sudan",      "السودان": "Sudan",
+    "egypt": "Egypt",      "مصر": "Egypt",
+    "libya": "Libya",      "ليبيا": "Libya",
+    "tunisia": "Tunisia",  "تونس": "Tunisia",
+    "niger": "Niger",      "النيجر": "Niger",
+    "yemen": "Yemen",      "اليمن": "Yemen",
+    "palestine": "Palestine", "فلسطين": "Palestine",
+}
+
+# v2 currency choice codes → ISO symbols
+CURRENCY_CODES = {
+    "syp": "SYP", "usd": "USD", "try": "TRY", "lbp": "LBP",
+    "jod": "JOD", "iqd": "IQD", "egp": "EGP", "mad": "MAD",
+    "xof": "XOF", "xaf": "XAF", "etb": "ETB", "sdg": "SDG",
+    "lyd": "LYD", "tnd": "TND", "eur": "EUR",
 }
 
 # Arabic → English city name mapping
@@ -329,55 +401,55 @@ def get_form_fields():
 # Typical CSIORS field names (adjust if your form uses different names):
 
 FIELD_MAP = {
-    # Metadata
+    # Metadata — v2 group names at front
     "timestamp": ["_submission_time", "start"],
-    "city": ["city", "location/city", "المدينة", "group_location/city"],
-    "country": ["country", "location/country", "البلد", "group_location/country"],
+    "city":    ["group_location/city",    "city",    "location/city",    "المدينة"],
+    "country": ["group_location/country", "country", "location/country", "البلد"],
     "language": ["_language_", "language"],
-    "market": ["market_type", "نوع_السوق", "group_market/market_type"],
+    "market":  ["group_location/market_type", "market_type", "نوع_السوق", "group_market/market_type"],
 
-    # Prices (adjust group name to match your form)
-    "flour_1kg_price": ["flour_price", "prices/flour_1kg", "سعر_الطحين", "group_prices/flour_1kg"],
-    "flour_1kg_avail": ["flour_availability", "prices/flour_avail", "توفر_الطحين", "group_prices/flour_avail"],
-    "rice_1kg_price": ["rice_price", "prices/rice_1kg", "سعر_الأرز", "group_prices/rice_1kg"],
-    "rice_1kg_avail": ["rice_availability", "prices/rice_avail", "group_prices/rice_avail"],
-    "oil_1l_price": ["oil_price", "prices/cooking_oil_1l", "سعر_الزيت", "group_prices/cooking_oil_1l"],
-    "oil_1l_avail": ["oil_availability", "prices/oil_avail", "group_prices/oil_avail"],
-    "eggs_10_price": ["eggs_price", "prices/eggs_10pcs", "سعر_البيض", "group_prices/eggs_10pcs"],
-    "eggs_10_avail": ["eggs_availability", "prices/eggs_avail", "group_prices/eggs_avail"],
-    "water_price": ["water_price", "prices/water_1_5l", "سعر_الماء", "group_prices/water_1_5l"],
-    "water_avail": ["water_availability", "prices/water_avail", "group_prices/water_avail"],
-    "gasoline_price": ["gasoline_price", "prices/gasoline_1l", "سعر_البنزين", "group_prices/gasoline_1l"],
-    "diesel_price": ["diesel_price", "prices/diesel_1l", "سعر_الديزل", "group_prices/diesel_1l"],
-    "lpg_price": ["lpg_price", "prices/lpg_12_5kg", "سعر_الغاز", "group_prices/lpg_12_5kg"],
-    "electricity": ["electricity_monthly", "prices/electricity", "group_prices/electricity"],
+    # Prices — v2 uses flour_price/rice_price/etc (not flour_1kg)
+    "flour_1kg_price": ["group_prices/flour_price",    "flour_price",    "prices/flour_1kg",       "سعر_الطحين",  "group_prices/flour_1kg"],
+    "flour_1kg_avail": ["group_prices/flour_avail",    "flour_availability", "prices/flour_avail", "توفر_الطحين"],
+    "rice_1kg_price":  ["group_prices/rice_price",     "rice_price",     "prices/rice_1kg",        "سعر_الأرز",   "group_prices/rice_1kg"],
+    "rice_1kg_avail":  ["group_prices/rice_avail",     "rice_availability",  "prices/rice_avail"],
+    "oil_1l_price":    ["group_prices/oil_price",      "oil_price",      "prices/cooking_oil_1l",  "سعر_الزيت",   "group_prices/cooking_oil_1l"],
+    "oil_1l_avail":    ["group_prices/oil_avail",      "oil_availability",   "prices/oil_avail"],
+    "eggs_10_price":   ["group_prices/eggs_price",     "eggs_price",     "prices/eggs_10pcs",      "سعر_البيض",   "group_prices/eggs_10pcs"],
+    "eggs_10_avail":   ["group_prices/eggs_avail",     "eggs_availability",  "prices/eggs_avail"],
+    "water_price":     ["group_prices/water_price",    "water_price",    "prices/water_1_5l",      "سعر_الماء",   "group_prices/water_1_5l"],
+    "water_avail":     ["group_prices/water_avail",    "water_availability", "prices/water_avail"],
+    "gasoline_price":  ["group_prices/gasoline_price", "gasoline_price", "prices/gasoline_1l",     "سعر_البنزين"],
+    "diesel_price":    ["group_prices/diesel_price",   "diesel_price",   "prices/diesel_1l",       "سعر_الديزل"],
+    "lpg_price":       ["group_prices/lpg_price",      "lpg_price",      "prices/lpg_12_5kg",      "سعر_الغاز"],
+    "electricity":     ["group_prices/electricity_monthly", "electricity_monthly", "prices/electricity"],
+    "price_change_reason": ["group_prices/price_change_reason", "price_change_reason", "notes/price_reason"],
 
-    # Employment
-    "wage_unskilled": ["wage_unskilled", "employment/wage_unskilled_daily", "أجرة_عامل", "group_employment/wage_unskilled"],
-    "wage_skilled": ["wage_skilled", "employment/wage_skilled_daily", "أجرة_حرفي", "group_employment/wage_skilled"],
-    "rent": ["rent_monthly", "employment/rent_2room", "الإيجار", "group_employment/rent"],
-    "job_availability": ["job_availability", "employment/job_avail", "توفر_العمل", "group_employment/job_availability"],
-    "work_problems": ["work_problems", "employment/problems", "مشاكل_العمل", "group_employment/work_problems"],
-    "labor_note": ["labor_market_note", "employment/note", "group_employment/labor_note"],
+    # Employment — v2 uses wage_unskilled (not wage_unskilled_daily)
+    "wage_unskilled":  ["group_employment/wage_unskilled",    "wage_unskilled",    "employment/wage_unskilled_daily", "أجرة_عامل"],
+    "wage_skilled":    ["group_employment/wage_skilled",      "wage_skilled",      "employment/wage_skilled_daily",   "أجرة_حرفي"],
+    "rent":            ["group_employment/rent_monthly",      "rent_monthly",      "employment/rent_2room",            "الإيجار"],
+    "job_availability":["group_employment/job_availability",  "job_availability",  "employment/job_avail",            "توفر_العمل"],
+    "work_problems":   ["group_employment/work_problems",     "work_problems",     "employment/problems",             "مشاكل_العمل"],
+    "labor_note":      ["group_employment/labor_note",        "labor_market_note", "employment/note"],
 
-    # Security
-    "security_incident": ["most_common_incident", "security/incident", "الحوادث", "group_security/incident"],
-    "freedom_movement": ["freedom_of_movement", "security/movement", "حرية_التنقل", "group_security/freedom_movement"],
-    "closed_roads": ["closed_roads_30d", "security/closed_roads", "طرق_مغلقة", "group_security/closed_roads"],
-    "public_mood": ["public_mood", "security/mood", "المزاج_العام", "group_security/public_mood"],
-    "security_problem": ["biggest_security_problem", "security/biggest_problem", "group_security/security_problem"],
+    # Security — v2 uses freedom_movement (not freedom_of_movement)
+    "security_incident":["group_security/security_incident", "most_common_incident", "security/incident",     "الحوادث"],
+    "freedom_movement": ["group_security/freedom_movement",  "freedom_of_movement",  "security/movement",     "حرية_التنقل"],
+    "closed_roads":     ["group_security/closed_roads",      "closed_roads_30d",     "security/closed_roads", "طرق_مغلقة"],
+    "public_mood":      ["group_security/public_mood",       "public_mood",          "security/mood",         "المزاج_العام"],
+    "security_problem": ["group_security/security_problem",  "biggest_security_problem", "security/biggest_problem"],
 
-    # Migration
-    "departures": ["observed_departures", "migration/departures", "المغادرات", "group_migration/departures"],
-    "departure_reason": ["departure_reason", "migration/reason", "سبب_المغادرة", "group_migration/reason"],
-    "migration_dest": ["migration_destination", "migration/destination", "group_migration/destination"],
+    # Migration — v2 uses observed_departures directly in group
+    "departures":      ["group_migration/observed_departures", "observed_departures", "migration/departures", "المغادرات"],
+    "departure_reason":["group_migration/departure_reason",    "departure_reason",    "migration/reason",     "سبب_المغادرة"],
+    "migration_dest":  ["group_migration/migration_destination","migration_destination","migration/destination"],
 
-    # Notes
-    "field_observation": ["field_observation", "notes/observation", "ملاحظات", "group_notes/field_observation"],
-    "price_change_reason": ["price_change_reason", "notes/price_reason", "group_notes/price_change_reason"],
-    "respondent_initials": ["respondent_initials", "initials", "الأحرف_الأولى"],
-    "respondent_email": ["respondent_email", "email", "البريد"],
-    "currency": ["currency", "العملة"],
+    # Notes & respondent — v2 group prefixes
+    "field_observation":  ["group_notes/field_observation",      "field_observation",  "notes/observation",  "ملاحظات"],
+    "respondent_initials":["group_respondent/respondent_initials","respondent_initials","initials",           "الأحرف_الأولى"],
+    "respondent_email":   ["group_respondent/respondent_email",  "respondent_email",   "email",              "البريد"],
+    "currency":           ["group_respondent/currency",           "currency",           "العملة"],
 }
 
 
@@ -423,16 +495,15 @@ def transform_submission(sub, idx):
     city_raw = extract_field(sub, FIELD_MAP["city"]) or ""
     city_normalized, city_ar = normalize_city(city_raw)
 
-    # Country
+    # Country — use COUNTRY_NORMALIZE for v2 choice values
     country_raw = extract_field(sub, FIELD_MAP["country"]) or ""
-    country_normalized = "Syria"  # Default — form is Syria-focused
-    is_syria = True
-    if country_raw:
-        if "سوريا" in country_raw or "syria" in country_raw.lower():
-            country_normalized = "Syria"
-        else:
-            country_normalized = country_raw
-            is_syria = False
+    country_key = country_raw.strip().lower()
+    country_normalized = (
+        COUNTRY_NORMALIZE.get(country_key) or
+        COUNTRY_NORMALIZE.get(country_raw.strip()) or
+        ("Syria" if not country_raw or "syria" in country_key or "سوريا" in country_raw else country_raw)
+    )
+    is_syria = country_normalized == "Syria"
 
     # Coordinates
     coords = CITY_COORDS.get(city_normalized, {"lat": None, "lon": None})
@@ -467,8 +538,15 @@ def transform_submission(sub, idx):
         "electricity_monthly": extract_field(sub, FIELD_MAP.get("electricity", [])) or "",
     }
 
-    # Currency issue detection
-    currency_flag = detect_currency_issue(prices)
+    # Currency — use explicit v2 field first, fall back to heuristic
+    currency_raw = extract_field(sub, FIELD_MAP.get("currency", [])) or ""
+    currency_code = CURRENCY_CODES.get(currency_raw.strip().lower(), "") if currency_raw else ""
+    if currency_code and currency_code != "SYP":
+        # Explicit non-SYP currency from v2 form — flag for exclusion from SYP averages
+        currency_flag = currency_raw.strip().lower()
+    else:
+        # Fall back to heuristic price-based detection
+        currency_flag = detect_currency_issue(prices)
 
     # Employment
     wage_raw = extract_field(sub, FIELD_MAP["wage_unskilled"])
@@ -513,7 +591,7 @@ def transform_submission(sub, idx):
         "coordinates": coords,
         "market": extract_field(sub, FIELD_MAP.get("market", [])) or "",
         "respondent_initials": extract_field(sub, FIELD_MAP.get("respondent_initials", [])) or "",
-        "currency": extract_field(sub, FIELD_MAP.get("currency", [])) or "ل.س",
+        "currency": currency_code or extract_field(sub, FIELD_MAP.get("currency", [])) or "SYP",
         "currency_flag": currency_flag,
         "prices": prices,
         "price_change_reason": extract_field(sub, FIELD_MAP.get("price_change_reason", [])) or "",

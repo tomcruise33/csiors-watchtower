@@ -5,7 +5,7 @@ import {
   fetchData, filterData, getMonths, getValidPriceData,
   compareMonths, fmtMonth, formatDate,
   MOOD_COLOR, MOOD_SCORE, JOB_SCORE, MOVE_SCORE, MIGR_SCORE,
-  totColor,
+  totColor, getCountries,
 } from './data.js';
 import { initFilters, getFilterState } from './filters.js';
 import { initMap, updateMap } from './map.js';
@@ -51,8 +51,8 @@ async function init() {
 }
 
 function getFiltered() {
-  const { fromMonth, toMonth, city } = getFilterState();
-  return filterData(allData, { fromMonth, toMonth, city });
+  const { fromMonth, toMonth, city, country } = getFilterState();
+  return filterData(allData, { fromMonth, toMonth, city, country });
 }
 
 function onFilterChange(state) {
@@ -68,17 +68,25 @@ function onCityClick(city) {
 }
 
 function render() {
-  const { fromMonth, toMonth, city } = getFilterState();
+  const { fromMonth, toMonth, city, country } = getFilterState();
   selectedCity = city;
 
-  const filtered = filterData(allData, { fromMonth, toMonth, city });
+  const filtered = filterData(allData, { fromMonth, toMonth, city, country });
   const months   = getMonths(allData);
 
-  renderSummaryBar(filtered);
+  // Dynamic header subtitle
+  const subEl = document.querySelector('.header .sub');
+  if (subEl) {
+    subEl.textContent = country === 'all'
+      ? 'Field Monitoring Dashboard — Migration & Food Security'
+      : `${country} — Field Monitoring Dashboard`;
+  }
+
+  renderSummaryBar(filtered, country);
   renderStats(filtered);
   renderFindings(filtered);
-  renderCityComparison(filtered);
-  updateMap(filtered, selectedCity);
+  renderCityComparison(filtered, country);
+  updateMap(filtered, selectedCity, country);
   renderEWS(filtered);
   renderCityDetail();
   renderCompare();
@@ -108,7 +116,7 @@ function ewsLevel(score) {
   return              { label: 'ALERT',   color: '#ef4444' };
 }
 
-function renderSummaryBar(data) {
+function renderSummaryBar(data, selectedCountry = 'all') {
   const el = document.getElementById('summaryBar');
   if (!el) return;
   if (!data.length) { el.innerHTML = '<span style="color:var(--text-muted)">No data for selected filters.</span>'; return; }
@@ -142,7 +150,12 @@ function renderSummaryBar(data) {
   const lvl   = ewsLevel(score);
   const cities = new Set(data.map(r => r.city)).size;
 
-  el.innerHTML = `NE Syria food security: <span class="summary-level" style="background:${lvl.color}20;color:${lvl.color}">${lvl.label}</span> — Avg ToT <strong>${totAvg != null ? totAvg.toFixed(1) : '—'}</strong> (<span style="color:${tc.text}">${tc.label}</span>) across <strong>${cities} location${cities !== 1 ? 's' : ''}</strong>. <strong>${fearfulPct}%</strong> of respondents report fearful mood. <span style="color:var(--text-muted)">n=${data.length} reports · ${dateRange}</span>`;
+  const countryLabel = selectedCountry === 'all' ? 'Multi-country' : selectedCountry;
+  const allCountries = getCountries(data);
+  const coverageNote = selectedCountry === 'all' && allCountries.length > 1
+    ? ` (${allCountries.join(', ')})`
+    : '';
+  el.innerHTML = `<strong>${countryLabel}</strong> food security${coverageNote}: <span class="summary-level" style="background:${lvl.color}20;color:${lvl.color}">${lvl.label}</span> — Avg ToT <strong>${totAvg != null ? totAvg.toFixed(1) : '—'}</strong> (<span style="color:${tc.text}">${tc.label}</span>) across <strong>${cities} location${cities !== 1 ? 's' : ''}</strong>. <strong>${fearfulPct}%</strong> of respondents report fearful mood. <span style="color:var(--text-muted)">n=${data.length} reports · ${dateRange}</span>`;
 }
 
 // ============================================================
@@ -255,7 +268,7 @@ function renderFindings(data) {
 // Section D — City Comparison (primary analytical view)
 // ============================================================
 
-function renderCityComparison(data) {
+function renderCityComparison(data, selectedCountry = 'all') {
   const container = document.getElementById('cityComparison');
   if (!container) return;
 
@@ -283,9 +296,11 @@ function renderCityComparison(data) {
 
   rows.sort((a, b) => b.ews - a.ews);
 
+  const multiCountry = selectedCountry === 'all' && getCountries(data).length > 1;
   const thead = `
     <thead><tr>
       <th>City</th>
+      ${multiCountry ? '<th>Country</th>' : ''}
       <th>Last Report</th>
       <th>Flour 1kg</th>
       <th>Daily Wage</th>
@@ -314,6 +329,7 @@ function renderCityComparison(data) {
 
     return `<tr class="${rowCls}" data-city="${row.city}">
       <td><strong>${row.city}</strong> <span style="color:var(--text-muted);font-size:10px">n=${row.n}</span></td>
+      ${multiCountry ? `<td style="color:var(--text-muted)">${r.country || '—'}</td>` : ''}
       <td style="color:var(--text-muted)">${formatDate(r.date)}</td>
       <td>${flourCell}</td>
       <td>${wageCell}</td>
@@ -359,7 +375,7 @@ function renderCityDetail() {
     <div class="city-detail-header">
       <div>
         <div class="city-name">${selectedCity}</div>
-        <div class="city-date">Latest: ${formatDate(latest.date)} | ${cityData.length} total reports</div>
+        <div class="city-date">${latest.country ? latest.country + ' · ' : ''}Latest: ${formatDate(latest.date)} | ${cityData.length} total reports</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <span class="badge" style="background:${mc}20;color:${mc}">${latest.mood}</span>

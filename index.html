@@ -13,7 +13,7 @@
 <div class="header" id="header">
   <div class="header-left">
     <h1><span class="logo-accent">CSIORS</span> Watchtower</h1>
-    <div class="sub">Syria Field Monitoring — Terms of Trade &amp; Early Warning System</div>
+    <div class="sub">Field Monitoring Dashboard — Migration &amp; Food Security</div>
   </div>
   <div class="controls">
     <div class="date-range-wrap">
@@ -21,6 +21,9 @@
       <span class="range-sep">to</span>
       <select id="monthTo" title="To month"></select>
     </div>
+    <select id="countryFilter" title="Filter by country">
+      <option value="all">All Countries</option>
+    </select>
     <select id="cityFilter" title="Filter by city">
       <option value="all">All Cities</option>
     </select>
@@ -55,7 +58,10 @@
   <div class="grid-2-1">
     <div>
       <div class="section-label">Operational Map — click a city for details</div>
-      <div id="syriaMap" class="map-container"></div>
+      <div style="position:relative">
+        <div id="syriaMap" class="map-container"></div>
+        <div id="mapPlaceholder" class="map-container" style="display:none;position:absolute;inset:0;z-index:500;align-items:center;justify-content:center;background:var(--bg-card);border-radius:12px;color:var(--text-muted);font-size:13px;padding:24px;text-align:center"></div>
+      </div>
     </div>
     <div>
       <div class="section-label">Early Warning System</div>

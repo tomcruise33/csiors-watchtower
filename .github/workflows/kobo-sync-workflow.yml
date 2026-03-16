@@ -38,6 +38,7 @@ jobs:
       - name: Run KoboToolbox sync
         env:
           KOBO_TOKEN: ${{ secrets.KOBO_TOKEN }}
+          # v2 form UID: abcLY2v3kPakMtrmBisUsm
           KOBO_ASSET_ID: ${{ secrets.KOBO_ASSET_ID }}
         run: python kobo_sync.py --commit
 
